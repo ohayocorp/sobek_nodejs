@@ -144,20 +144,55 @@ func (r *RequireModule) loadAsDirectory(modpath string) (module *js.Object, err 
 	if err != nil {
 		return r.loadIndex(modpath)
 	}
+
 	var pkg struct {
-		Main string
+		Main    string
+		Exports map[string]any
 	}
+
 	err = json.Unmarshal(buf, &pkg)
-	if err != nil || len(pkg.Main) == 0 {
+	if err != nil || (len(pkg.Exports) == 0 && len(pkg.Main) == 0) {
 		return r.loadIndex(modpath)
 	}
 
-	m := r.resolvePath(modpath, pkg.Main)
-	if module, err = r.loadAsFile(m); module != nil || err != nil {
-		return
+	pDir := filepath.Dir(p)
+
+	for exportName, exportValues := range pkg.Exports {
+		if filepath.Join(pDir, exportName) != modpath {
+			continue
+		}
+
+		var exportPath string
+
+		if exportValuesMap, ok := exportValues.(map[string]any); ok {
+			if strValue, ok := exportValuesMap["default"].(string); ok {
+				exportPath = strValue
+			} else {
+				continue
+			}
+		} else if strValue, ok := exportValues.(string); ok {
+			exportPath = strValue
+		} else {
+			continue
+		}
+
+		exportPath = r.resolvePath(pDir, exportPath)
+
+		if module, err = r.loadAsFile(exportPath); module != nil || err != nil {
+			return
+		}
 	}
 
-	return r.loadIndex(m)
+	if modpath == pDir || filepath.Dir(modpath) == pDir {
+		m := r.resolvePath(modpath, pkg.Main)
+		if module, err = r.loadAsFile(m); module != nil || err != nil {
+			return
+		}
+
+		return r.loadIndex(m)
+	}
+
+	return r.loadIndex(modpath)
 }
 
 func (r *RequireModule) loadNodeModule(modpath, start string) (*js.Object, error) {
