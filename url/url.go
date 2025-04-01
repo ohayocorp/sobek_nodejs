@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/dop251/goja"
-	"github.com/dop251/goja_nodejs/errors"
+	"github.com/grafana/sobek"
+	"github.com/ohayocorp/sobek_nodejs/errors"
 
 	"golang.org/x/net/idna"
 )
@@ -26,7 +26,7 @@ var (
 	reflectTypeInt = reflect.TypeOf(int64(0))
 )
 
-func toURL(r *goja.Runtime, v goja.Value) *nodeURL {
+func toURL(r *sobek.Runtime, v sobek.Value) *nodeURL {
 	if v.ExportType() == reflectTypeURL {
 		if u := v.Export().(*nodeURL); u != nil {
 			return u
@@ -36,29 +36,29 @@ func toURL(r *goja.Runtime, v goja.Value) *nodeURL {
 	panic(errors.NewTypeError(r, errors.ErrCodeInvalidThis, `Value of "this" must be of type URL`))
 }
 
-func (m *urlModule) newInvalidURLError(msg, input string) *goja.Object {
+func (m *urlModule) newInvalidURLError(msg, input string) *sobek.Object {
 	o := errors.NewTypeError(m.r, "ERR_INVALID_URL", msg)
 	o.Set("input", m.r.ToValue(input))
 	return o
 }
 
-func (m *urlModule) defineURLAccessorProp(p *goja.Object, name string, getter func(*nodeURL) interface{}, setter func(*nodeURL, goja.Value)) {
-	var getterVal, setterVal goja.Value
+func (m *urlModule) defineURLAccessorProp(p *sobek.Object, name string, getter func(*nodeURL) interface{}, setter func(*nodeURL, sobek.Value)) {
+	var getterVal, setterVal sobek.Value
 	if getter != nil {
-		getterVal = m.r.ToValue(func(call goja.FunctionCall) goja.Value {
+		getterVal = m.r.ToValue(func(call sobek.FunctionCall) sobek.Value {
 			return m.r.ToValue(getter(toURL(m.r, call.This)))
 		})
 	}
 	if setter != nil {
-		setterVal = m.r.ToValue(func(call goja.FunctionCall) goja.Value {
+		setterVal = m.r.ToValue(func(call sobek.FunctionCall) sobek.Value {
 			setter(toURL(m.r, call.This), call.Argument(0))
-			return goja.Undefined()
+			return sobek.Undefined()
 		})
 	}
-	p.DefineAccessorProperty(name, getterVal, setterVal, goja.FLAG_FALSE, goja.FLAG_TRUE)
+	p.DefineAccessorProperty(name, getterVal, setterVal, sobek.FLAG_FALSE, sobek.FLAG_TRUE)
 }
 
-func valueToURLPort(v goja.Value) (portNum int, empty bool) {
+func valueToURLPort(v sobek.Value) (portNum int, empty bool) {
 	portNum = -1
 	if et := v.ExportType(); et == reflectTypeInt {
 		num := v.ToInteger()
@@ -144,7 +144,7 @@ func clearURLPort(u *url.URL) {
 	u.Host = u.Hostname()
 }
 
-func setURLPort(nu *nodeURL, v goja.Value) {
+func setURLPort(nu *nodeURL, v sobek.Value) {
 	u := nu.url
 	if u.Scheme == "file" {
 		return
@@ -224,13 +224,13 @@ func (m *urlModule) fixURL(u *url.URL) {
 	fixRawQuery(u)
 }
 
-func (m *urlModule) createURLPrototype() *goja.Object {
+func (m *urlModule) createURLPrototype() *sobek.Object {
 	p := m.r.NewObject()
 
 	// host
 	m.defineURLAccessorProp(p, "host", func(u *nodeURL) interface{} {
 		return u.url.Host
-	}, func(u *nodeURL, arg goja.Value) {
+	}, func(u *nodeURL, arg sobek.Value) {
 		host := arg.String()
 		if _, err := url.ParseRequestURI(u.url.Scheme + "://" + host); err == nil {
 			u.url.Host = host
@@ -244,7 +244,7 @@ func (m *urlModule) createURLPrototype() *goja.Object {
 			return "#" + u.url.EscapedFragment()
 		}
 		return ""
-	}, func(u *nodeURL, arg goja.Value) {
+	}, func(u *nodeURL, arg sobek.Value) {
 		h := arg.String()
 		if len(h) > 0 && h[0] == '#' {
 			h = h[1:]
@@ -255,7 +255,7 @@ func (m *urlModule) createURLPrototype() *goja.Object {
 	// hostname
 	m.defineURLAccessorProp(p, "hostname", func(u *nodeURL) interface{} {
 		return strings.Split(u.url.Host, ":")[0]
-	}, func(u *nodeURL, arg goja.Value) {
+	}, func(u *nodeURL, arg sobek.Value) {
 		h := arg.String()
 		if strings.IndexByte(h, ':') >= 0 {
 			return
@@ -273,14 +273,14 @@ func (m *urlModule) createURLPrototype() *goja.Object {
 	// href
 	m.defineURLAccessorProp(p, "href", func(u *nodeURL) interface{} {
 		return u.String()
-	}, func(u *nodeURL, arg goja.Value) {
+	}, func(u *nodeURL, arg sobek.Value) {
 		u.url = m.parseURL(arg.String(), true)
 	})
 
 	// pathname
 	m.defineURLAccessorProp(p, "pathname", func(u *nodeURL) interface{} {
 		return u.url.EscapedPath()
-	}, func(u *nodeURL, arg goja.Value) {
+	}, func(u *nodeURL, arg sobek.Value) {
 		u.url.Path = cleanPath(arg.String(), u.url.Scheme)
 	})
 
@@ -293,7 +293,7 @@ func (m *urlModule) createURLPrototype() *goja.Object {
 	m.defineURLAccessorProp(p, "password", func(u *nodeURL) interface{} {
 		p, _ := u.url.User.Password()
 		return p
-	}, func(u *nodeURL, arg goja.Value) {
+	}, func(u *nodeURL, arg sobek.Value) {
 		user := u.url.User
 		u.url.User = url.UserPassword(user.Username(), arg.String())
 	})
@@ -301,7 +301,7 @@ func (m *urlModule) createURLPrototype() *goja.Object {
 	// username
 	m.defineURLAccessorProp(p, "username", func(u *nodeURL) interface{} {
 		return u.url.User.Username()
-	}, func(u *nodeURL, arg goja.Value) {
+	}, func(u *nodeURL, arg sobek.Value) {
 		p, has := u.url.User.Password()
 		if !has {
 			u.url.User = url.User(arg.String())
@@ -313,14 +313,14 @@ func (m *urlModule) createURLPrototype() *goja.Object {
 	// port
 	m.defineURLAccessorProp(p, "port", func(u *nodeURL) interface{} {
 		return u.url.Port()
-	}, func(u *nodeURL, arg goja.Value) {
+	}, func(u *nodeURL, arg sobek.Value) {
 		setURLPort(u, arg)
 	})
 
 	// protocol
 	m.defineURLAccessorProp(p, "protocol", func(u *nodeURL) interface{} {
 		return u.url.Scheme + ":"
-	}, func(u *nodeURL, arg goja.Value) {
+	}, func(u *nodeURL, arg sobek.Value) {
 		s := arg.String()
 		pos := strings.IndexByte(s, ':')
 		if pos >= 0 {
@@ -341,7 +341,7 @@ func (m *urlModule) createURLPrototype() *goja.Object {
 			return "?" + u.url.RawQuery
 		}
 		return ""
-	}, func(u *nodeURL, arg goja.Value) {
+	}, func(u *nodeURL, arg sobek.Value) {
 		u.url.RawQuery = arg.String()
 		fixRawQuery(u.url)
 		if u.searchParams != nil {
@@ -364,13 +364,13 @@ func (m *urlModule) createURLPrototype() *goja.Object {
 		return m.newURLSearchParams((*urlSearchParams)(u))
 	}, nil)
 
-	p.Set("toString", m.r.ToValue(func(call goja.FunctionCall) goja.Value {
+	p.Set("toString", m.r.ToValue(func(call sobek.FunctionCall) sobek.Value {
 		u := toURL(m.r, call.This)
 		u.syncSearchParams()
 		return m.r.ToValue(u.url.String())
 	}))
 
-	p.Set("toJSON", m.r.ToValue(func(call goja.FunctionCall) goja.Value {
+	p.Set("toJSON", m.r.ToValue(func(call sobek.FunctionCall) sobek.Value {
 		u := toURL(m.r, call.This)
 		u.syncSearchParams()
 		return m.r.ToValue(u.url.String())
@@ -379,24 +379,24 @@ func (m *urlModule) createURLPrototype() *goja.Object {
 	return p
 }
 
-func (m *urlModule) createURLConstructor() goja.Value {
-	f := m.r.ToValue(func(call goja.ConstructorCall) *goja.Object {
+func (m *urlModule) createURLConstructor() sobek.Value {
+	f := m.r.ToValue(func(call sobek.ConstructorCall) *sobek.Object {
 		var u *url.URL
-		if baseArg := call.Argument(1); !goja.IsUndefined(baseArg) {
+		if baseArg := call.Argument(1); !sobek.IsUndefined(baseArg) {
 			base := m.parseURL(baseArg.String(), true)
 			ref := m.parseURL(call.Argument(0).String(), false)
 			u = base.ResolveReference(ref)
 		} else {
 			u = m.parseURL(call.Argument(0).String(), true)
 		}
-		res := m.r.ToValue(&nodeURL{url: u}).(*goja.Object)
+		res := m.r.ToValue(&nodeURL{url: u}).(*sobek.Object)
 		res.SetPrototype(call.This.Prototype())
 		return res
-	}).(*goja.Object)
+	}).(*sobek.Object)
 
 	proto := m.createURLPrototype()
 	f.Set("prototype", proto)
-	proto.DefineDataProperty("constructor", f, goja.FLAG_FALSE, goja.FLAG_FALSE, goja.FLAG_FALSE)
+	proto.DefineDataProperty("constructor", f, sobek.FLAG_FALSE, sobek.FLAG_FALSE, sobek.FLAG_FALSE)
 	return f
 }
 

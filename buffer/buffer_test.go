@@ -6,12 +6,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dop251/goja"
-	"github.com/dop251/goja_nodejs/require"
+	"github.com/grafana/sobek"
+	"github.com/ohayocorp/sobek_nodejs/require"
 )
 
 func TestBufferFrom(t *testing.T) {
-	vm := goja.New()
+	vm := sobek.New()
 	new(require.Registry).Enable(vm)
 
 	_, err := vm.RunString(`
@@ -74,7 +74,7 @@ func TestBufferFrom(t *testing.T) {
 }
 
 func TestFromBase64(t *testing.T) {
-	vm := goja.New()
+	vm := sobek.New()
 	new(require.Registry).Enable(vm)
 
 	_, err := vm.RunString(`
@@ -122,7 +122,7 @@ func TestFromBase64(t *testing.T) {
 }
 
 func TestWrapBytes(t *testing.T) {
-	vm := goja.New()
+	vm := sobek.New()
 	new(require.Registry).Enable(vm)
 	b := []byte{1, 2, 3}
 	buffer := GetApi(vm)
@@ -146,7 +146,7 @@ func TestWrapBytes(t *testing.T) {
 }
 
 func TestBuffer_alloc(t *testing.T) {
-	vm := goja.New()
+	vm := sobek.New()
 	new(require.Registry).Enable(vm)
 
 	_, err := vm.RunString(`
@@ -240,7 +240,7 @@ type testCase struct {
 }
 
 func runTestCases(t *testing.T, tcs []testCase) {
-	vm := goja.New()
+	vm := sobek.New()
 	new(require.Registry).Enable(vm)
 	_, err := vm.RunScript("testdata/assertions.js", assertionsSource)
 	if err != nil {

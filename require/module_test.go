@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"testing"
 
-	js "github.com/dop251/goja"
+	js "github.com/grafana/sobek"
 )
 
 func mapFileSystemSourceLoader(files map[string]string) SourceLoader {
@@ -490,7 +490,7 @@ func TestSourceMapLoader(t *testing.T) {
 }
 
 func testsetup() (string, func(), error) {
-	name, err := os.MkdirTemp("", "goja-nodejs-require-test")
+	name, err := os.MkdirTemp("", "sobek-nodejs-require-test")
 	if err != nil {
 		return "", nil, err
 	}

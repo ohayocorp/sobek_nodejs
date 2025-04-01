@@ -3,7 +3,7 @@ package errors
 import (
 	"fmt"
 
-	"github.com/dop251/goja"
+	"github.com/grafana/sobek"
 )
 
 const (
@@ -14,18 +14,18 @@ const (
 	ErrCodeOutOfRange      = "ERR_OUT_OF_RANGE"
 )
 
-func error_toString(call goja.FunctionCall, r *goja.Runtime) goja.Value {
+func error_toString(call sobek.FunctionCall, r *sobek.Runtime) sobek.Value {
 	this := call.This.ToObject(r)
 	var name, msg string
-	if n := this.Get("name"); n != nil && !goja.IsUndefined(n) {
+	if n := this.Get("name"); n != nil && !sobek.IsUndefined(n) {
 		name = n.String()
 	} else {
 		name = "Error"
 	}
-	if m := this.Get("message"); m != nil && !goja.IsUndefined(m) {
+	if m := this.Get("message"); m != nil && !sobek.IsUndefined(m) {
 		msg = m.String()
 	}
-	if code := this.Get("code"); code != nil && !goja.IsUndefined(code) {
+	if code := this.Get("code"); code != nil && !sobek.IsUndefined(code) {
 		if name != "" {
 			name += " "
 		}
@@ -40,25 +40,25 @@ func error_toString(call goja.FunctionCall, r *goja.Runtime) goja.Value {
 	return r.ToValue(name)
 }
 
-func addProps(r *goja.Runtime, e *goja.Object, code string) {
+func addProps(r *sobek.Runtime, e *sobek.Object, code string) {
 	e.Set("code", code)
-	e.DefineDataProperty("toString", r.ToValue(error_toString), goja.FLAG_TRUE, goja.FLAG_TRUE, goja.FLAG_FALSE)
+	e.DefineDataProperty("toString", r.ToValue(error_toString), sobek.FLAG_TRUE, sobek.FLAG_TRUE, sobek.FLAG_FALSE)
 }
 
-func NewTypeError(r *goja.Runtime, code string, params ...interface{}) *goja.Object {
+func NewTypeError(r *sobek.Runtime, code string, params ...interface{}) *sobek.Object {
 	e := r.NewTypeError(params...)
 	addProps(r, e, code)
 	return e
 }
 
-func NewRangeError(r *goja.Runtime, code string, params ...interface{}) *goja.Object {
-	ctor, _ := r.Get("RangeError").(*goja.Object)
+func NewRangeError(r *sobek.Runtime, code string, params ...interface{}) *sobek.Object {
+	ctor, _ := r.Get("RangeError").(*sobek.Object)
 	return NewError(r, ctor, code, params...)
 }
 
-func NewError(r *goja.Runtime, ctor *goja.Object, code string, args ...interface{}) *goja.Object {
+func NewError(r *sobek.Runtime, ctor *sobek.Object, code string, args ...interface{}) *sobek.Object {
 	if ctor == nil {
-		ctor, _ = r.Get("Error").(*goja.Object)
+		ctor, _ = r.Get("Error").(*sobek.Object)
 	}
 	if ctor == nil {
 		return nil
@@ -76,22 +76,22 @@ func NewError(r *goja.Runtime, ctor *goja.Object, code string, args ...interface
 	return o
 }
 
-func NewArgumentNotBigIntTypeError(r *goja.Runtime, name string) *goja.Object {
+func NewArgumentNotBigIntTypeError(r *sobek.Runtime, name string) *sobek.Object {
 	return NewNotCorrectTypeError(r, name, "BigInt")
 }
 
-func NewArgumentNotStringTypeError(r *goja.Runtime, name string) *goja.Object {
+func NewArgumentNotStringTypeError(r *sobek.Runtime, name string) *sobek.Object {
 	return NewNotCorrectTypeError(r, name, "string")
 }
 
-func NewArgumentNotNumberTypeError(r *goja.Runtime, name string) *goja.Object {
+func NewArgumentNotNumberTypeError(r *sobek.Runtime, name string) *sobek.Object {
 	return NewNotCorrectTypeError(r, name, "number")
 }
 
-func NewNotCorrectTypeError(r *goja.Runtime, name, _type string) *goja.Object {
+func NewNotCorrectTypeError(r *sobek.Runtime, name, _type string) *sobek.Object {
 	return NewTypeError(r, ErrCodeInvalidArgType, "The \"%s\" argument must be of type %s.", name, _type)
 }
 
-func NewArgumentOutOfRangeError(r *goja.Runtime, name string, v any) *goja.Object {
+func NewArgumentOutOfRangeError(r *sobek.Runtime, name string, v any) *sobek.Object {
 	return NewRangeError(r, ErrCodeOutOfRange, "The value of \"%s\" %v is out of range.", name, v)
 }

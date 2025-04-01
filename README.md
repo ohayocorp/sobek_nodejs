@@ -1,7 +1,7 @@
-Nodejs compatibility library for Goja
+Nodejs compatibility library for sobek
 ====
 
-This is a collection of Goja modules that provide nodejs compatibility.
+This is a collection of sobek modules that provide nodejs compatibility.
 
 Example:
 
@@ -9,14 +9,14 @@ Example:
 package main
 
 import (
-    "github.com/dop251/goja"
-    "github.com/dop251/goja_nodejs/require"
+    "github.com/grafana/sobek"
+    "github.com/ohayocorp/sobek_nodejs/require"
 )
 
 func main() {
     registry := new(require.Registry) // this can be shared by multiple runtimes
 
-    runtime := goja.New()
+    runtime := sobek.New()
     req := registry.Enable(runtime)
 
     runtime.RunString(`

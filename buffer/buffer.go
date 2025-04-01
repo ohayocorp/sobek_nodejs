@@ -10,43 +10,43 @@ import (
 	"reflect"
 	"strconv"
 
-	"github.com/dop251/goja"
-	"github.com/dop251/goja_nodejs/errors"
-	"github.com/dop251/goja_nodejs/goutil"
-	"github.com/dop251/goja_nodejs/require"
+	"github.com/ohayocorp/sobek_nodejs/errors"
+	"github.com/ohayocorp/sobek_nodejs/goutil"
+	"github.com/ohayocorp/sobek_nodejs/require"
 
 	"github.com/dop251/base64dec"
+	"github.com/grafana/sobek"
 	"golang.org/x/text/encoding/unicode"
 )
 
 const ModuleName = "buffer"
 
 type Buffer struct {
-	r *goja.Runtime
+	r *sobek.Runtime
 
-	bufferCtorObj *goja.Object
+	bufferCtorObj *sobek.Object
 
-	uint8ArrayCtorObj *goja.Object
-	uint8ArrayCtor    goja.Constructor
+	uint8ArrayCtorObj *sobek.Object
+	uint8ArrayCtor    sobek.Constructor
 }
 
 var (
-	symApi = goja.NewSymbol("api")
+	symApi = sobek.NewSymbol("api")
 )
 
 var (
-	reflectTypeArrayBuffer = reflect.TypeOf(goja.ArrayBuffer{})
+	reflectTypeArrayBuffer = reflect.TypeOf(sobek.ArrayBuffer{})
 	reflectTypeString      = reflect.TypeOf("")
 	reflectTypeInt         = reflect.TypeOf(int64(0))
 	reflectTypeFloat       = reflect.TypeOf(0.0)
 	reflectTypeBytes       = reflect.TypeOf(([]byte)(nil))
 )
 
-func Enable(runtime *goja.Runtime) {
+func Enable(runtime *sobek.Runtime) {
 	runtime.Set("Buffer", require.Require(runtime, ModuleName).ToObject(runtime).Get("Buffer"))
 }
 
-func Bytes(r *goja.Runtime, v goja.Value) []byte {
+func Bytes(r *sobek.Runtime, v sobek.Value) []byte {
 	var b []byte
 	err := r.ExportTo(v, &b)
 	if err != nil {
@@ -55,19 +55,19 @@ func Bytes(r *goja.Runtime, v goja.Value) []byte {
 	return b
 }
 
-func mod(r *goja.Runtime) *goja.Object {
+func mod(r *sobek.Runtime) *sobek.Object {
 	res := r.Get("Buffer")
 	if res == nil {
 		res = require.Require(r, ModuleName).ToObject(r).Get("Buffer")
 	}
-	m, ok := res.(*goja.Object)
+	m, ok := res.(*sobek.Object)
 	if !ok {
 		panic(r.NewTypeError("Could not extract Buffer"))
 	}
 	return m
 }
 
-func api(mod *goja.Object) *Buffer {
+func api(mod *sobek.Object) *Buffer {
 	if s := mod.GetSymbol(symApi); s != nil {
 		b, _ := s.Export().(*Buffer)
 		return b
@@ -76,17 +76,17 @@ func api(mod *goja.Object) *Buffer {
 	return nil
 }
 
-func GetApi(r *goja.Runtime) *Buffer {
+func GetApi(r *sobek.Runtime) *Buffer {
 	return api(mod(r))
 }
 
-func DecodeBytes(r *goja.Runtime, arg, enc goja.Value) []byte {
+func DecodeBytes(r *sobek.Runtime, arg, enc sobek.Value) []byte {
 	switch arg.ExportType() {
 	case reflectTypeArrayBuffer:
-		return arg.Export().(goja.ArrayBuffer).Bytes()
+		return arg.Export().(sobek.ArrayBuffer).Bytes()
 	case reflectTypeString:
 		var codec StringCodec
-		if !goja.IsUndefined(enc) {
+		if !sobek.IsUndefined(enc) {
 			codec = stringCodecs[enc.String()]
 		}
 		if codec == nil {
@@ -94,7 +94,7 @@ func DecodeBytes(r *goja.Runtime, arg, enc goja.Value) []byte {
 		}
 		return codec.DecodeAppend(arg.String(), nil)
 	default:
-		if o, ok := arg.(*goja.Object); ok {
+		if o, ok := arg.(*sobek.Object); ok {
 			if o.ExportType() == reflectTypeBytes {
 				return o.Export().([]byte)
 			}
@@ -103,12 +103,12 @@ func DecodeBytes(r *goja.Runtime, arg, enc goja.Value) []byte {
 	panic(errors.NewTypeError(r, errors.ErrCodeInvalidArgType, "The \"data\" argument must be of type string or an instance of Buffer, TypedArray, or DataView."))
 }
 
-func WrapBytes(r *goja.Runtime, data []byte) *goja.Object {
+func WrapBytes(r *sobek.Runtime, data []byte) *sobek.Object {
 	m := mod(r)
 	if api := api(m); api != nil {
 		return api.WrapBytes(data)
 	}
-	if from, ok := goja.AssertFunction(m.Get("from")); ok {
+	if from, ok := sobek.AssertFunction(m.Get("from")); ok {
 		ab := r.NewArrayBuffer(data)
 		v, err := from(m, r.ToValue(ab))
 		if err != nil {
@@ -121,9 +121,9 @@ func WrapBytes(r *goja.Runtime, data []byte) *goja.Object {
 
 // EncodeBytes returns the given byte slice encoded as string with the given encoding. If encoding
 // is not specified or not supported, returns a Buffer that wraps the data.
-func EncodeBytes(r *goja.Runtime, data []byte, enc goja.Value) goja.Value {
+func EncodeBytes(r *sobek.Runtime, data []byte, enc sobek.Value) sobek.Value {
 	var codec StringCodec
-	if !goja.IsUndefined(enc) {
+	if !sobek.IsUndefined(enc) {
 		codec = StringCodecByName(enc.String())
 	}
 	if codec != nil {
@@ -132,11 +132,11 @@ func EncodeBytes(r *goja.Runtime, data []byte, enc goja.Value) goja.Value {
 	return WrapBytes(r, data)
 }
 
-func (b *Buffer) WrapBytes(data []byte) *goja.Object {
+func (b *Buffer) WrapBytes(data []byte) *sobek.Object {
 	return b.fromBytes(data)
 }
 
-func (b *Buffer) ctor(call goja.ConstructorCall) (res *goja.Object) {
+func (b *Buffer) ctor(call sobek.ConstructorCall) (res *sobek.Object) {
 	arg := call.Argument(0)
 	switch arg.ExportType() {
 	case reflectTypeInt, reflectTypeFloat:
@@ -245,7 +245,7 @@ func Base64DecodeAppend(dst []byte, src string) ([]byte, error) {
 	return res, err
 }
 
-func (b *Buffer) fromString(str, enc string) *goja.Object {
+func (b *Buffer) fromString(str, enc string) *sobek.Object {
 	codec := stringCodecs[enc]
 	if codec == nil {
 		codec = utf8Codec
@@ -253,7 +253,7 @@ func (b *Buffer) fromString(str, enc string) *goja.Object {
 	return b.fromBytes(codec.DecodeAppend(str, nil))
 }
 
-func (b *Buffer) fromBytes(data []byte) *goja.Object {
+func (b *Buffer) fromBytes(data []byte) *sobek.Object {
 	o, err := b.uint8ArrayCtor(b.bufferCtorObj, b.r.ToValue(b.r.NewArrayBuffer(data)))
 	if err != nil {
 		panic(err)
@@ -261,7 +261,7 @@ func (b *Buffer) fromBytes(data []byte) *goja.Object {
 	return o
 }
 
-func (b *Buffer) _from(args ...goja.Value) *goja.Object {
+func (b *Buffer) _from(args ...sobek.Value) *sobek.Object {
 	if len(args) == 0 {
 		panic(errors.NewTypeError(b.r, errors.ErrCodeInvalidArgType, "The first argument must be of type string or an instance of Buffer, ArrayBuffer, or Array or an Array-like Object. Received undefined"))
 	}
@@ -280,14 +280,14 @@ func (b *Buffer) _from(args ...goja.Value) *goja.Object {
 		}
 		return b.fromString(arg.String(), enc)
 	default:
-		if o, ok := arg.(*goja.Object); ok {
+		if o, ok := arg.(*sobek.Object); ok {
 			if o.ExportType() == reflectTypeBytes {
 				bb, _ := o.Export().([]byte)
 				a := make([]byte, len(bb))
 				copy(a, bb)
 				return b.fromBytes(a)
 			} else {
-				if f, ok := goja.AssertFunction(o.Get("valueOf")); ok {
+				if f, ok := sobek.AssertFunction(o.Get("valueOf")); ok {
 					valueOf, err := f(o)
 					if err != nil {
 						panic(err)
@@ -298,8 +298,8 @@ func (b *Buffer) _from(args ...goja.Value) *goja.Object {
 					}
 				}
 
-				if s := o.GetSymbol(goja.SymToPrimitive); s != nil {
-					if f, ok := goja.AssertFunction(s); ok {
+				if s := o.GetSymbol(sobek.SymToPrimitive); s != nil {
+					if f, ok := sobek.AssertFunction(s); ok {
 						str, err := f(o, b.r.ToValue("string"))
 						if err != nil {
 							panic(err)
@@ -326,7 +326,7 @@ func (b *Buffer) _from(args ...goja.Value) *goja.Object {
 	panic(errors.NewTypeError(b.r, errors.ErrCodeInvalidArgType, "The first argument must be of type string or an instance of Buffer, ArrayBuffer, or Array or an Array-like Object. Received %s", arg))
 }
 
-func (b *Buffer) from(call goja.FunctionCall) goja.Value {
+func (b *Buffer) from(call sobek.FunctionCall) sobek.Value {
 	return b._from(call.Arguments...)
 }
 
@@ -334,8 +334,8 @@ func StringCodecByName(name string) StringCodec {
 	return stringCodecs[name]
 }
 
-func (b *Buffer) getStringCodec(enc goja.Value) (codec StringCodec) {
-	if !goja.IsUndefined(enc) {
+func (b *Buffer) getStringCodec(enc sobek.Value) (codec StringCodec) {
+	if !sobek.IsUndefined(enc) {
 		codec = stringCodecs[enc.String()]
 		if codec == nil {
 			panic(errors.NewTypeError(b.r, "ERR_UNKNOWN_ENCODING", "Unknown encoding: %s", enc))
@@ -346,7 +346,7 @@ func (b *Buffer) getStringCodec(enc goja.Value) (codec StringCodec) {
 	return
 }
 
-func (b *Buffer) fill(buf []byte, fill string, enc goja.Value) []byte {
+func (b *Buffer) fill(buf []byte, fill string, enc sobek.Value) []byte {
 	codec := b.getStringCodec(enc)
 	b1 := codec.DecodeAppend(fill, buf[:0])
 	if len(b1) > len(buf) {
@@ -358,10 +358,10 @@ func (b *Buffer) fill(buf []byte, fill string, enc goja.Value) []byte {
 	return buf
 }
 
-func (b *Buffer) alloc(call goja.FunctionCall) goja.Value {
+func (b *Buffer) alloc(call sobek.FunctionCall) sobek.Value {
 	arg0 := call.Argument(0)
 	size := -1
-	if goja.IsNumber(arg0) {
+	if sobek.IsNumber(arg0) {
 		size = int(arg0.ToInteger())
 	}
 	if size < 0 {
@@ -369,18 +369,18 @@ func (b *Buffer) alloc(call goja.FunctionCall) goja.Value {
 	}
 	fill := call.Argument(1)
 	buf := make([]byte, size)
-	if !goja.IsUndefined(fill) {
-		if goja.IsString(fill) {
-			var enc goja.Value
-			if a := call.Argument(2); goja.IsString(a) {
+	if !sobek.IsUndefined(fill) {
+		if sobek.IsString(fill) {
+			var enc sobek.Value
+			if a := call.Argument(2); sobek.IsString(a) {
 				enc = a
 			} else {
-				enc = goja.Undefined()
+				enc = sobek.Undefined()
 			}
 			buf = b.fill(buf, fill.String(), enc)
 		} else {
 			fill = fill.ToNumber()
-			if !goja.IsNaN(fill) && !goja.IsInfinity(fill) {
+			if !sobek.IsNaN(fill) && !sobek.IsInfinity(fill) {
 				fillByte := byte(fill.ToInteger())
 				if fillByte != 0 {
 					for i := range buf {
@@ -393,7 +393,7 @@ func (b *Buffer) alloc(call goja.FunctionCall) goja.Value {
 	return b.fromBytes(buf)
 }
 
-func (b *Buffer) proto_toString(call goja.FunctionCall) goja.Value {
+func (b *Buffer) proto_toString(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	codec := b.getStringCodec(call.Argument(0))
 	start := goutil.CoercedIntegerArgument(call, 1, 0, 0)
@@ -419,7 +419,7 @@ func (b *Buffer) proto_toString(call goja.FunctionCall) goja.Value {
 	return b.r.ToValue(codec.Encode(bb[start:end]))
 }
 
-func (b *Buffer) proto_equals(call goja.FunctionCall) goja.Value {
+func (b *Buffer) proto_equals(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	other := call.Argument(0)
 	if b.r.InstanceOf(other, b.uint8ArrayCtorObj) {
@@ -430,7 +430,7 @@ func (b *Buffer) proto_equals(call goja.FunctionCall) goja.Value {
 }
 
 // readBigInt64BE reads a big-endian 64-bit signed integer from the buffer
-func (b *Buffer) readBigInt64BE(call goja.FunctionCall) goja.Value {
+func (b *Buffer) readBigInt64BE(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	offset := b.getOffsetArgument(call, 0, bb, 8)
 	value := int64(binary.BigEndian.Uint64(bb[offset : offset+8]))
@@ -439,7 +439,7 @@ func (b *Buffer) readBigInt64BE(call goja.FunctionCall) goja.Value {
 }
 
 // readBigInt64LE reads a little-endian 64-bit signed integer from the buffer
-func (b *Buffer) readBigInt64LE(call goja.FunctionCall) goja.Value {
+func (b *Buffer) readBigInt64LE(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	offset := b.getOffsetArgument(call, 0, bb, 8)
 	value := int64(binary.LittleEndian.Uint64(bb[offset : offset+8]))
@@ -448,7 +448,7 @@ func (b *Buffer) readBigInt64LE(call goja.FunctionCall) goja.Value {
 }
 
 // readBigUInt64BE reads a big-endian 64-bit unsigned integer from the buffer
-func (b *Buffer) readBigUInt64BE(call goja.FunctionCall) goja.Value {
+func (b *Buffer) readBigUInt64BE(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	offset := b.getOffsetArgument(call, 0, bb, 8)
 	value := binary.BigEndian.Uint64(bb[offset : offset+8])
@@ -457,7 +457,7 @@ func (b *Buffer) readBigUInt64BE(call goja.FunctionCall) goja.Value {
 }
 
 // readBigUInt64LE reads a little-endian 64-bit unsigned integer from the buffer
-func (b *Buffer) readBigUInt64LE(call goja.FunctionCall) goja.Value {
+func (b *Buffer) readBigUInt64LE(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	offset := b.getOffsetArgument(call, 0, bb, 8)
 	value := binary.LittleEndian.Uint64(bb[offset : offset+8])
@@ -466,7 +466,7 @@ func (b *Buffer) readBigUInt64LE(call goja.FunctionCall) goja.Value {
 }
 
 // readDoubleBE reads a big-endian 64-bit floating-point number from the buffer
-func (b *Buffer) readDoubleBE(call goja.FunctionCall) goja.Value {
+func (b *Buffer) readDoubleBE(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	offset := b.getOffsetArgument(call, 0, bb, 8)
 	value := binary.BigEndian.Uint64(bb[offset : offset+8])
@@ -475,7 +475,7 @@ func (b *Buffer) readDoubleBE(call goja.FunctionCall) goja.Value {
 }
 
 // readDoubleLE reads a little-endian 64-bit floating-point number from the buffer
-func (b *Buffer) readDoubleLE(call goja.FunctionCall) goja.Value {
+func (b *Buffer) readDoubleLE(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	offset := b.getOffsetArgument(call, 0, bb, 8)
 	value := binary.LittleEndian.Uint64(bb[offset : offset+8])
@@ -484,7 +484,7 @@ func (b *Buffer) readDoubleLE(call goja.FunctionCall) goja.Value {
 }
 
 // readFloatBE reads a big-endian 32-bit floating-point number from the buffer
-func (b *Buffer) readFloatBE(call goja.FunctionCall) goja.Value {
+func (b *Buffer) readFloatBE(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	offset := b.getOffsetArgument(call, 0, bb, 4)
 	value := binary.BigEndian.Uint32(bb[offset : offset+4])
@@ -493,7 +493,7 @@ func (b *Buffer) readFloatBE(call goja.FunctionCall) goja.Value {
 }
 
 // readFloatLE reads a little-endian 32-bit floating-point number from the buffer
-func (b *Buffer) readFloatLE(call goja.FunctionCall) goja.Value {
+func (b *Buffer) readFloatLE(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	offset := b.getOffsetArgument(call, 0, bb, 4)
 	value := binary.LittleEndian.Uint32(bb[offset : offset+4])
@@ -502,7 +502,7 @@ func (b *Buffer) readFloatLE(call goja.FunctionCall) goja.Value {
 }
 
 // readInt8 reads an 8-bit signed integer from the buffer
-func (b *Buffer) readInt8(call goja.FunctionCall) goja.Value {
+func (b *Buffer) readInt8(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	offset := b.getOffsetArgument(call, 0, bb, 1)
 	value := int8(bb[offset])
@@ -511,7 +511,7 @@ func (b *Buffer) readInt8(call goja.FunctionCall) goja.Value {
 }
 
 // readInt16BE reads a big-endian 16-bit signed integer from the buffer
-func (b *Buffer) readInt16BE(call goja.FunctionCall) goja.Value {
+func (b *Buffer) readInt16BE(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	offset := b.getOffsetArgument(call, 0, bb, 2)
 	value := int16(binary.BigEndian.Uint16(bb[offset : offset+2]))
@@ -520,7 +520,7 @@ func (b *Buffer) readInt16BE(call goja.FunctionCall) goja.Value {
 }
 
 // readInt16LE reads a little-endian 16-bit signed integer from the buffer
-func (b *Buffer) readInt16LE(call goja.FunctionCall) goja.Value {
+func (b *Buffer) readInt16LE(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	offset := b.getOffsetArgument(call, 0, bb, 2)
 	value := int16(binary.LittleEndian.Uint16(bb[offset : offset+2]))
@@ -529,7 +529,7 @@ func (b *Buffer) readInt16LE(call goja.FunctionCall) goja.Value {
 }
 
 // readInt32BE reads a big-endian 32-bit signed integer from the buffer
-func (b *Buffer) readInt32BE(call goja.FunctionCall) goja.Value {
+func (b *Buffer) readInt32BE(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	offset := b.getOffsetArgument(call, 0, bb, 4)
 	value := int32(binary.BigEndian.Uint32(bb[offset : offset+4]))
@@ -538,7 +538,7 @@ func (b *Buffer) readInt32BE(call goja.FunctionCall) goja.Value {
 }
 
 // readInt32LE reads a little-endian 32-bit signed integer from the buffer
-func (b *Buffer) readInt32LE(call goja.FunctionCall) goja.Value {
+func (b *Buffer) readInt32LE(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	offset := b.getOffsetArgument(call, 0, bb, 4)
 	value := int32(binary.LittleEndian.Uint32(bb[offset : offset+4]))
@@ -547,7 +547,7 @@ func (b *Buffer) readInt32LE(call goja.FunctionCall) goja.Value {
 }
 
 // readIntBE reads a big-endian signed integer of variable byte length
-func (b *Buffer) readIntBE(call goja.FunctionCall) goja.Value {
+func (b *Buffer) readIntBE(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	offset, byteLength := b.getVariableLengthReadArguments(call, bb)
 
@@ -562,7 +562,7 @@ func (b *Buffer) readIntBE(call goja.FunctionCall) goja.Value {
 }
 
 // readIntLE reads a little-endian signed integer of variable byte length
-func (b *Buffer) readIntLE(call goja.FunctionCall) goja.Value {
+func (b *Buffer) readIntLE(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	offset, byteLength := b.getVariableLengthReadArguments(call, bb)
 
@@ -577,7 +577,7 @@ func (b *Buffer) readIntLE(call goja.FunctionCall) goja.Value {
 }
 
 // readUInt8 reads an 8-bit unsigned integer from the buffer
-func (b *Buffer) readUInt8(call goja.FunctionCall) goja.Value {
+func (b *Buffer) readUInt8(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	offset := b.getOffsetArgument(call, 0, bb, 1)
 	value := bb[offset]
@@ -586,7 +586,7 @@ func (b *Buffer) readUInt8(call goja.FunctionCall) goja.Value {
 }
 
 // readUInt16BE reads a big-endian 16-bit unsigned integer from the buffer
-func (b *Buffer) readUInt16BE(call goja.FunctionCall) goja.Value {
+func (b *Buffer) readUInt16BE(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	offset := b.getOffsetArgument(call, 0, bb, 2)
 	value := binary.BigEndian.Uint16(bb[offset : offset+2])
@@ -595,7 +595,7 @@ func (b *Buffer) readUInt16BE(call goja.FunctionCall) goja.Value {
 }
 
 // readUInt16LE reads a little-endian 16-bit unsigned integer from the buffer
-func (b *Buffer) readUInt16LE(call goja.FunctionCall) goja.Value {
+func (b *Buffer) readUInt16LE(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	offset := b.getOffsetArgument(call, 0, bb, 2)
 	value := binary.LittleEndian.Uint16(bb[offset : offset+2])
@@ -604,7 +604,7 @@ func (b *Buffer) readUInt16LE(call goja.FunctionCall) goja.Value {
 }
 
 // readUInt32BE reads a big-endian 32-bit unsigned integer from the buffer
-func (b *Buffer) readUInt32BE(call goja.FunctionCall) goja.Value {
+func (b *Buffer) readUInt32BE(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	offset := b.getOffsetArgument(call, 0, bb, 4)
 	value := binary.BigEndian.Uint32(bb[offset : offset+4])
@@ -613,7 +613,7 @@ func (b *Buffer) readUInt32BE(call goja.FunctionCall) goja.Value {
 }
 
 // readUInt32LE reads a little-endian 32-bit unsigned integer from the buffer
-func (b *Buffer) readUInt32LE(call goja.FunctionCall) goja.Value {
+func (b *Buffer) readUInt32LE(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	offset := b.getOffsetArgument(call, 0, bb, 4)
 	value := binary.LittleEndian.Uint32(bb[offset : offset+4])
@@ -622,7 +622,7 @@ func (b *Buffer) readUInt32LE(call goja.FunctionCall) goja.Value {
 }
 
 // readUIntBE reads a big-endian unsigned integer of variable byte length
-func (b *Buffer) readUIntBE(call goja.FunctionCall) goja.Value {
+func (b *Buffer) readUIntBE(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	offset, byteLength := b.getVariableLengthReadArguments(call, bb)
 
@@ -635,7 +635,7 @@ func (b *Buffer) readUIntBE(call goja.FunctionCall) goja.Value {
 }
 
 // readUIntLE reads a little-endian unsigned integer of variable byte length
-func (b *Buffer) readUIntLE(call goja.FunctionCall) goja.Value {
+func (b *Buffer) readUIntLE(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	offset, byteLength := b.getVariableLengthReadArguments(call, bb)
 
@@ -650,7 +650,7 @@ func (b *Buffer) readUIntLE(call goja.FunctionCall) goja.Value {
 // write will write a string to the Buffer at offset according to the character encoding. The length parameter is
 // the number of bytes to write. If buffer did not contain enough space to fit the entire string, only part of string
 // will be written.
-func (b *Buffer) write(call goja.FunctionCall) goja.Value {
+func (b *Buffer) write(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	str := goutil.RequiredStringArgument(b.r, call, "string", 0)
 	// note that we are passing in zero for numBytes, since the length parameter, which depends on offset,
@@ -671,7 +671,7 @@ func (b *Buffer) write(call goja.FunctionCall) goja.Value {
 }
 
 // writeBigInt64BE writes a big-endian 64-bit signed integer to the buffer
-func (b *Buffer) writeBigInt64BE(call goja.FunctionCall) goja.Value {
+func (b *Buffer) writeBigInt64BE(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	value := goutil.RequiredBigIntArgument(b.r, call, "value", 0)
 	offset := b.getOffsetArgument(call, 1, bb, 8)
@@ -683,7 +683,7 @@ func (b *Buffer) writeBigInt64BE(call goja.FunctionCall) goja.Value {
 }
 
 // writeBigInt64LE writes a little-endian 64-bit signed integer to the buffer
-func (b *Buffer) writeBigInt64LE(call goja.FunctionCall) goja.Value {
+func (b *Buffer) writeBigInt64LE(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	value := goutil.RequiredBigIntArgument(b.r, call, "value", 0)
 	offset := b.getOffsetArgument(call, 1, bb, 8)
@@ -695,7 +695,7 @@ func (b *Buffer) writeBigInt64LE(call goja.FunctionCall) goja.Value {
 }
 
 // writeBigUInt64BE writes a big-endian 64-bit unsigned integer to the buffer
-func (b *Buffer) writeBigUInt64BE(call goja.FunctionCall) goja.Value {
+func (b *Buffer) writeBigUInt64BE(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	value := goutil.RequiredBigIntArgument(b.r, call, "value", 0)
 	offset := b.getOffsetArgument(call, 1, bb, 8)
@@ -707,7 +707,7 @@ func (b *Buffer) writeBigUInt64BE(call goja.FunctionCall) goja.Value {
 }
 
 // writeBigUInt64LE writes a little-endian 64-bit unsigned integer to the buffer
-func (b *Buffer) writeBigUInt64LE(call goja.FunctionCall) goja.Value {
+func (b *Buffer) writeBigUInt64LE(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	value := goutil.RequiredBigIntArgument(b.r, call, "value", 0)
 	offset := b.getOffsetArgument(call, 1, bb, 8)
@@ -719,7 +719,7 @@ func (b *Buffer) writeBigUInt64LE(call goja.FunctionCall) goja.Value {
 }
 
 // writeDoubleBE writes a big-endian 64-bit double to the buffer
-func (b *Buffer) writeDoubleBE(call goja.FunctionCall) goja.Value {
+func (b *Buffer) writeDoubleBE(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	value := goutil.RequiredFloatArgument(b.r, call, "value", 0)
 	offset := b.getOffsetArgument(call, 1, bb, 8)
@@ -731,7 +731,7 @@ func (b *Buffer) writeDoubleBE(call goja.FunctionCall) goja.Value {
 }
 
 // writeDoubleLE writes a little-endian 64-bit double to the buffer
-func (b *Buffer) writeDoubleLE(call goja.FunctionCall) goja.Value {
+func (b *Buffer) writeDoubleLE(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	value := goutil.RequiredFloatArgument(b.r, call, "value", 0)
 	offset := b.getOffsetArgument(call, 1, bb, 8)
@@ -743,7 +743,7 @@ func (b *Buffer) writeDoubleLE(call goja.FunctionCall) goja.Value {
 }
 
 // writeFloatBE writes a big-endian 32-bit float to the buffer
-func (b *Buffer) writeFloatBE(call goja.FunctionCall) goja.Value {
+func (b *Buffer) writeFloatBE(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	value := goutil.RequiredFloatArgument(b.r, call, "value", 0)
 	offset := b.getOffsetArgument(call, 1, bb, 4)
@@ -757,7 +757,7 @@ func (b *Buffer) writeFloatBE(call goja.FunctionCall) goja.Value {
 }
 
 // writeFloatLE writes a little-endian 32-bit floating-point number to the buffer
-func (b *Buffer) writeFloatLE(call goja.FunctionCall) goja.Value {
+func (b *Buffer) writeFloatLE(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	value := goutil.RequiredFloatArgument(b.r, call, "value", 0)
 	offset := b.getOffsetArgument(call, 1, bb, 4)
@@ -771,7 +771,7 @@ func (b *Buffer) writeFloatLE(call goja.FunctionCall) goja.Value {
 }
 
 // writeInt8 writes an 8-bit signed integer to the buffer
-func (b *Buffer) writeInt8(call goja.FunctionCall) goja.Value {
+func (b *Buffer) writeInt8(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	value := goutil.RequiredIntegerArgument(b.r, call, "value", 0)
 	offset := b.getOffsetArgument(call, 1, bb, 1)
@@ -786,7 +786,7 @@ func (b *Buffer) writeInt8(call goja.FunctionCall) goja.Value {
 }
 
 // writeInt16BE writes a big-endian 16-bit signed integer to the buffer
-func (b *Buffer) writeInt16BE(call goja.FunctionCall) goja.Value {
+func (b *Buffer) writeInt16BE(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	value := goutil.RequiredIntegerArgument(b.r, call, "value", 0)
 	offset := b.getOffsetArgument(call, 1, bb, 2)
@@ -799,7 +799,7 @@ func (b *Buffer) writeInt16BE(call goja.FunctionCall) goja.Value {
 }
 
 // writeInt16LE writes a little-endian 16-bit signed integer to the buffer
-func (b *Buffer) writeInt16LE(call goja.FunctionCall) goja.Value {
+func (b *Buffer) writeInt16LE(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	value := goutil.RequiredIntegerArgument(b.r, call, "value", 0)
 	offset := b.getOffsetArgument(call, 1, bb, 2)
@@ -812,7 +812,7 @@ func (b *Buffer) writeInt16LE(call goja.FunctionCall) goja.Value {
 }
 
 // writeInt32BE writes a big-endian 32-bit signed integer to the buffer
-func (b *Buffer) writeInt32BE(call goja.FunctionCall) goja.Value {
+func (b *Buffer) writeInt32BE(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	value := goutil.RequiredIntegerArgument(b.r, call, "value", 0)
 	offset := b.getOffsetArgument(call, 1, bb, 4)
@@ -825,7 +825,7 @@ func (b *Buffer) writeInt32BE(call goja.FunctionCall) goja.Value {
 }
 
 // writeInt32LE writes a little-endian 32-bit signed integer to the buffer
-func (b *Buffer) writeInt32LE(call goja.FunctionCall) goja.Value {
+func (b *Buffer) writeInt32LE(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	value := goutil.RequiredIntegerArgument(b.r, call, "value", 0)
 	offset := b.getOffsetArgument(call, 1, bb, 4)
@@ -838,7 +838,7 @@ func (b *Buffer) writeInt32LE(call goja.FunctionCall) goja.Value {
 }
 
 // writeIntBE writes a big-endian signed integer of variable byte length
-func (b *Buffer) writeIntBE(call goja.FunctionCall) goja.Value {
+func (b *Buffer) writeIntBE(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	value := goutil.RequiredIntegerArgument(b.r, call, "value", 0)
 	offset, byteLength := b.getVariableLengthWriteArguments(call, bb)
@@ -855,7 +855,7 @@ func (b *Buffer) writeIntBE(call goja.FunctionCall) goja.Value {
 }
 
 // writeIntLE writes a little-endian signed integer of variable byte length
-func (b *Buffer) writeIntLE(call goja.FunctionCall) goja.Value {
+func (b *Buffer) writeIntLE(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	value := goutil.RequiredIntegerArgument(b.r, call, "value", 0)
 	offset, byteLength := b.getVariableLengthWriteArguments(call, bb)
@@ -872,7 +872,7 @@ func (b *Buffer) writeIntLE(call goja.FunctionCall) goja.Value {
 }
 
 // writeUInt8 writes an 8-bit unsigned integer to the buffer
-func (b *Buffer) writeUInt8(call goja.FunctionCall) goja.Value {
+func (b *Buffer) writeUInt8(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	value := goutil.RequiredIntegerArgument(b.r, call, "value", 0)
 	offset := b.getOffsetArgument(call, 1, bb, 1)
@@ -887,7 +887,7 @@ func (b *Buffer) writeUInt8(call goja.FunctionCall) goja.Value {
 }
 
 // writeUInt16BE writes a big-endian 16-bit unsigned integer to the buffer
-func (b *Buffer) writeUInt16BE(call goja.FunctionCall) goja.Value {
+func (b *Buffer) writeUInt16BE(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	value := goutil.RequiredIntegerArgument(b.r, call, "value", 0)
 	offset := b.getOffsetArgument(call, 1, bb, 2)
@@ -900,7 +900,7 @@ func (b *Buffer) writeUInt16BE(call goja.FunctionCall) goja.Value {
 }
 
 // writeUInt16LE writes a little-endian 16-bit unsigned integer to the buffer
-func (b *Buffer) writeUInt16LE(call goja.FunctionCall) goja.Value {
+func (b *Buffer) writeUInt16LE(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	value := goutil.RequiredIntegerArgument(b.r, call, "value", 0)
 	offset := b.getOffsetArgument(call, 1, bb, 2)
@@ -913,7 +913,7 @@ func (b *Buffer) writeUInt16LE(call goja.FunctionCall) goja.Value {
 }
 
 // writeUInt32BE writes a big-endian 32-bit unsigned integer to the buffer
-func (b *Buffer) writeUInt32BE(call goja.FunctionCall) goja.Value {
+func (b *Buffer) writeUInt32BE(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	value := goutil.RequiredIntegerArgument(b.r, call, "value", 0)
 	offset := b.getOffsetArgument(call, 1, bb, 4)
@@ -926,7 +926,7 @@ func (b *Buffer) writeUInt32BE(call goja.FunctionCall) goja.Value {
 }
 
 // writeUInt32LE writes a little-endian 32-bit unsigned integer to the buffer
-func (b *Buffer) writeUInt32LE(call goja.FunctionCall) goja.Value {
+func (b *Buffer) writeUInt32LE(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	value := goutil.RequiredIntegerArgument(b.r, call, "value", 0)
 	offset := b.getOffsetArgument(call, 1, bb, 4)
@@ -939,7 +939,7 @@ func (b *Buffer) writeUInt32LE(call goja.FunctionCall) goja.Value {
 }
 
 // writeUIntBE writes a big-endian unsigned integer of variable byte length
-func (b *Buffer) writeUIntBE(call goja.FunctionCall) goja.Value {
+func (b *Buffer) writeUIntBE(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	value := goutil.RequiredIntegerArgument(b.r, call, "value", 0)
 	offset, byteLength := b.getVariableLengthWriteArguments(call, bb)
@@ -956,7 +956,7 @@ func (b *Buffer) writeUIntBE(call goja.FunctionCall) goja.Value {
 }
 
 // writeUIntLE writes a little-endian unsigned integer of variable byte length
-func (b *Buffer) writeUIntLE(call goja.FunctionCall) goja.Value {
+func (b *Buffer) writeUIntLE(call sobek.FunctionCall) sobek.Value {
 	bb := Bytes(b.r, call.This)
 	value := goutil.RequiredIntegerArgument(b.r, call, "value", 0)
 	offset, byteLength := b.getVariableLengthWriteArguments(call, bb)
@@ -972,7 +972,7 @@ func (b *Buffer) writeUIntLE(call goja.FunctionCall) goja.Value {
 	return b.r.ToValue(offset + byteLength)
 }
 
-func (b *Buffer) getOffsetArgument(call goja.FunctionCall, argIndex int, bb []byte, numBytes int64) int64 {
+func (b *Buffer) getOffsetArgument(call sobek.FunctionCall, argIndex int, bb []byte, numBytes int64) int64 {
 	offset := goutil.OptionalIntegerArgument(b.r, call, "offset", argIndex, 0)
 
 	if offset < 0 || offset+numBytes > int64(len(bb)) {
@@ -982,15 +982,15 @@ func (b *Buffer) getOffsetArgument(call goja.FunctionCall, argIndex int, bb []by
 	return offset
 }
 
-func (b *Buffer) getVariableLengthReadArguments(call goja.FunctionCall, bb []byte) (int64, int64) {
+func (b *Buffer) getVariableLengthReadArguments(call sobek.FunctionCall, bb []byte) (int64, int64) {
 	return b.getVariableLengthArguments(call, bb, 0, 1)
 }
 
-func (b *Buffer) getVariableLengthWriteArguments(call goja.FunctionCall, bb []byte) (int64, int64) {
+func (b *Buffer) getVariableLengthWriteArguments(call sobek.FunctionCall, bb []byte) (int64, int64) {
 	return b.getVariableLengthArguments(call, bb, 1, 2)
 }
 
-func (b *Buffer) getVariableLengthArguments(call goja.FunctionCall, bb []byte, offsetArgIndex, byteLengthArgIndex int) (int64, int64) {
+func (b *Buffer) getVariableLengthArguments(call sobek.FunctionCall, bb []byte, offsetArgIndex, byteLengthArgIndex int) (int64, int64) {
 	offset := goutil.RequiredIntegerArgument(b.r, call, "offset", offsetArgIndex)
 	byteLength := goutil.RequiredIntegerArgument(b.r, call, "byteLength", byteLengthArgIndex)
 
@@ -1065,10 +1065,10 @@ func signExtend(value int64, numBytes int64) int64 {
 	return (value << (64 - 8*numBytes)) >> (64 - 8*numBytes)
 }
 
-func Require(runtime *goja.Runtime, module *goja.Object) {
+func Require(runtime *sobek.Runtime, module *sobek.Object) {
 	b := &Buffer{r: runtime}
 	uint8Array := runtime.Get("Uint8Array")
-	if c, ok := goja.AssertConstructor(uint8Array); ok {
+	if c, ok := sobek.AssertConstructor(uint8Array); ok {
 		b.uint8ArrayCtor = c
 	} else {
 		panic(runtime.NewTypeError("Uint8Array is not a constructor"))
@@ -1077,13 +1077,13 @@ func Require(runtime *goja.Runtime, module *goja.Object) {
 
 	ctor := runtime.ToValue(b.ctor).ToObject(runtime)
 	ctor.SetPrototype(uint8ArrayObj)
-	ctor.DefineDataPropertySymbol(symApi, runtime.ToValue(b), goja.FLAG_FALSE, goja.FLAG_FALSE, goja.FLAG_FALSE)
+	ctor.DefineDataPropertySymbol(symApi, runtime.ToValue(b), sobek.FLAG_FALSE, sobek.FLAG_FALSE, sobek.FLAG_FALSE)
 	b.bufferCtorObj = ctor
 	b.uint8ArrayCtorObj = uint8ArrayObj
 
 	proto := runtime.NewObject()
 	proto.SetPrototype(uint8ArrayObj.Get("prototype").ToObject(runtime))
-	proto.DefineDataProperty("constructor", ctor, goja.FLAG_TRUE, goja.FLAG_TRUE, goja.FLAG_FALSE)
+	proto.DefineDataProperty("constructor", ctor, sobek.FLAG_TRUE, sobek.FLAG_TRUE, sobek.FLAG_FALSE)
 	proto.Set("equals", b.proto_equals)
 	proto.Set("toString", b.proto_toString)
 	proto.Set("readBigInt64BE", b.readBigInt64BE)
@@ -1189,7 +1189,7 @@ func Require(runtime *goja.Runtime, module *goja.Object) {
 	ctor.Set("from", b.from)
 	ctor.Set("alloc", b.alloc)
 
-	exports := module.Get("exports").(*goja.Object)
+	exports := module.Get("exports").(*sobek.Object)
 	exports.Set("Buffer", ctor)
 }
 

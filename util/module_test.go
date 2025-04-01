@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/dop251/goja"
-	"github.com/dop251/goja_nodejs/require"
+	"github.com/grafana/sobek"
+	"github.com/ohayocorp/sobek_nodejs/require"
 )
 
 func TestUtil_Format(t *testing.T) {
-	vm := goja.New()
+	vm := sobek.New()
 	util := New(vm)
 
 	var b bytes.Buffer
@@ -21,7 +21,7 @@ func TestUtil_Format(t *testing.T) {
 }
 
 func TestUtil_Format_NoArgs(t *testing.T) {
-	vm := goja.New()
+	vm := sobek.New()
 	util := New(vm)
 
 	var b bytes.Buffer
@@ -33,7 +33,7 @@ func TestUtil_Format_NoArgs(t *testing.T) {
 }
 
 func TestUtil_Format_LessArgs(t *testing.T) {
-	vm := goja.New()
+	vm := sobek.New()
 	util := New(vm)
 
 	var b bytes.Buffer
@@ -45,7 +45,7 @@ func TestUtil_Format_LessArgs(t *testing.T) {
 }
 
 func TestUtil_Format_MoreArgs(t *testing.T) {
-	vm := goja.New()
+	vm := sobek.New()
 	util := New(vm)
 
 	var b bytes.Buffer
@@ -57,11 +57,11 @@ func TestUtil_Format_MoreArgs(t *testing.T) {
 }
 
 func TestJSNoArgs(t *testing.T) {
-	vm := goja.New()
+	vm := sobek.New()
 	new(require.Registry).Enable(vm)
 
-	if util, ok := require.Require(vm, ModuleName).(*goja.Object); ok {
-		if format, ok := goja.AssertFunction(util.Get("format")); ok {
+	if util, ok := require.Require(vm, ModuleName).(*sobek.Object); ok {
+		if format, ok := sobek.AssertFunction(util.Get("format")); ok {
 			res, err := format(util)
 			if err != nil {
 				t.Fatal(err)

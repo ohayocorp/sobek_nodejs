@@ -4,12 +4,12 @@ import (
 	_ "embed"
 	"testing"
 
-	"github.com/dop251/goja"
-	"github.com/dop251/goja_nodejs/require"
+	"github.com/grafana/sobek"
+	"github.com/ohayocorp/sobek_nodejs/require"
 )
 
 func TestURL(t *testing.T) {
-	vm := goja.New()
+	vm := sobek.New()
 	new(require.Registry).Enable(vm)
 	Enable(vm)
 
@@ -25,7 +25,7 @@ func TestURL(t *testing.T) {
 }
 
 func TestGetters(t *testing.T) {
-	vm := goja.New()
+	vm := sobek.New()
 	new(require.Registry).Enable(vm)
 	Enable(vm)
 
@@ -102,7 +102,7 @@ func TestGetters(t *testing.T) {
 var urlTest string
 
 func TestJs(t *testing.T) {
-	vm := goja.New()
+	vm := sobek.New()
 	new(require.Registry).Enable(vm)
 	Enable(vm)
 
@@ -114,7 +114,7 @@ func TestJs(t *testing.T) {
 
 	_, err := vm.RunScript("testdata/url_test.js", urlTest)
 	if err != nil {
-		if ex, ok := err.(*goja.Exception); ok {
+		if ex, ok := err.(*sobek.Exception); ok {
 			t.Fatal(ex.String())
 		}
 		t.Fatal("Failed to process url script.", err)

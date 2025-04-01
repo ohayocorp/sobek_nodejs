@@ -4,13 +4,13 @@ import (
 	_ "embed"
 	"testing"
 
-	"github.com/dop251/goja"
-	"github.com/dop251/goja_nodejs/console"
-	"github.com/dop251/goja_nodejs/require"
+	"github.com/grafana/sobek"
+	"github.com/ohayocorp/sobek_nodejs/console"
+	"github.com/ohayocorp/sobek_nodejs/require"
 )
 
-func createVM() *goja.Runtime {
-	vm := goja.New()
+func createVM() *sobek.Runtime {
+	vm := sobek.New()
 	new(require.Registry).Enable(vm)
 	console.Enable(vm)
 	Enable(vm)
@@ -45,7 +45,7 @@ func TestURLSearchParameters(t *testing.T) {
 
 	_, err := vm.RunScript("testdata/url_search_params.js", url_search_params)
 	if err != nil {
-		if ex, ok := err.(*goja.Exception); ok {
+		if ex, ok := err.(*sobek.Exception); ok {
 			t.Fatal(ex.String())
 		}
 		t.Fatal("Failed to process url script.", err)
