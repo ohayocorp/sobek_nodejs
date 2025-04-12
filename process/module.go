@@ -13,6 +13,7 @@ const ModuleName = "process"
 type Process struct {
 	runtime *sobek.Runtime
 	env     map[string]string
+	argv    []string
 }
 
 func (p *Process) cwd(call sobek.FunctionCall) sobek.Value {
@@ -50,6 +51,7 @@ func Require(runtime *sobek.Runtime, module *sobek.Object) {
 
 	o := module.Get("exports").(*sobek.Object)
 	o.Set("env", p.env)
+	o.Set("argv", p.argv)
 	o.Set("cwd", p.cwd)
 	o.Set("chdir", p.chdir)
 }
